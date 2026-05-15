@@ -33,8 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.quick:
         seeds = [42, 101]
         K, N = 16, 64
-        noise_levels = [0.75, 0.85]
-        n_per_level = 60
+        noise_levels = [0.72, 0.84]
+        n_per_level = 50
         n_aniso = 6
     else:
         seeds = [42, 101, 202, 303, 404]

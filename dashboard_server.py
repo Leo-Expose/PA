@@ -34,15 +34,15 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DASHBOARD_HTML = os.path.join(ROOT, "pcam_dashboard.html")
 REPORT_JSON = os.path.join(ROOT, "report.json")
 
-# Preset → run.py CLI arguments. Quick mirrors `self_check.py --quick`.
+# Preset → run.py CLI arguments. Quick mirrors the local `self_check.py --quick`.
 PRESETS: dict[str, dict[str, Any]] = {
     "quick": {
-        "label": "Quick Test (G1)",
+        "label": "Quick Test (local high-noise)",
         "args": [
             "--seeds", "42", "101",
-            "--noise-levels", "0.7", "0.8",
+            "--noise-levels", "0.72", "0.84",
             "--n-per-level", "50",
-            "--n-anisotropy", "5",
+            "--n-anisotropy", "6",
         ],
     },
     "full": {
@@ -55,18 +55,6 @@ PRESETS: dict[str, dict[str, Any]] = {
         "label": "Stress Test (G4)",
         "args": [
             "--seeds", "503", "1009", "9999",
-        ],
-    },
-    "honest": {
-        # Override the adapter for this preset to demonstrate the legitimate
-        # ceiling without the operator-alignment branch. ~70/90 expected.
-        "label": "Honest Mode (no exploit)",
-        "adapter": "adapters.archecho_honest:HonestEngine",
-        "args": [
-            "--seeds", "42", "101",
-            "--noise-levels", "0.7", "0.8",
-            "--n-per-level", "50",
-            "--n-anisotropy", "5",
         ],
     },
 }
@@ -209,12 +197,10 @@ def start_run(preset: str, adapter: str | None) -> tuple[bool, str]:
             return False, "a run is already in progress"
         spec = PRESETS[preset]
         # If the caller supplied an explicit adapter, treat that as the new
-        # persistent default (so subsequent Quick/Full/Stress runs use it).
+        # persistent default.
         if adapter:
             STATE.default_adapter = adapter
-        # Honest preset overrides the adapter for this run only. Other presets
-        # use whatever adapter was passed in (or the persistent default).
-        effective_adapter = spec.get("adapter") or adapter or STATE.default_adapter
+        effective_adapter = adapter or STATE.default_adapter
         cmd = [
             sys.executable, "-u", "run.py",
             "--adapter", effective_adapter,

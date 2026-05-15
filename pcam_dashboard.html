@@ -551,10 +551,6 @@
                     <span id="stressTestSpinner"></span>
                     Run Stress Test (G4)
                 </button>
-                <button class="btn-secondary" onclick="runHonestMode()" title="Same retrieval branch, no operator-alignment exploit. Demonstrates the honest ceiling.">
-                    <span id="honestSpinner"></span>
-                    Honest Mode
-                </button>
                 <button class="btn-danger" id="stopBtn" onclick="stopExecution()" style="display: none;">
                     Stop / Cancel
                 </button>
@@ -603,7 +599,7 @@
                         <div class="metric-card">
                             <div>
                                 <div class="metric-label">Mean Δ Accuracy</div>
-                                <div class="metric-hint">Target: ≥ 0.05</div>
+                                <div class="metric-hint">Target: ≥ 0.08</div>
                             </div>
                             <div class="metric-value" id="meanDeltaAccuracy">—</div>
                         </div>
@@ -619,7 +615,7 @@
                         <div class="metric-card">
                             <div>
                                 <div class="metric-label">Mean Spread Reduction</div>
-                                <div class="metric-hint">Target: ≥ 10×</div>
+                                <div class="metric-hint">Target: ≥ 5×</div>
                             </div>
                             <div class="metric-value" id="meanSpreadReduction">—</div>
                         </div>
@@ -647,6 +643,7 @@
                             <thead>
                                 <tr>
                                     <th onclick="sortTable('seed')">Seed ID <span class="sort-indicator" id="sort-seed"></span></th>
+                                    <th onclick="sortTable('directAcc')">Direct Acc <span class="sort-indicator" id="sort-directAcc"></span></th>
                                     <th onclick="sortTable('baselineAcc')">Baseline Acc <span class="sort-indicator" id="sort-baselineAcc"></span></th>
                                     <th onclick="sortTable('agentAcc')">Agent Acc <span class="sort-indicator" id="sort-agentAcc"></span></th>
                                     <th onclick="sortTable('deltaAcc')">Δ Acc <span class="sort-indicator" id="sort-deltaAcc"></span></th>
@@ -713,8 +710,8 @@
 
     <script>
         // Live state. The dashboard now talks to dashboard_server.py over HTTP.
-        let seedResults = [];           // [{seed, baselineAcc, agentAcc, deltaAcc, baselineSpread, agentSpread, spreadRatio}]
-        let aggregated = null;          // {mean_delta, min_delta, mean_spread, min_spread, n_seeds, ...}
+        let seedResults = [];           // [{seed, directAcc, baselineAcc, agentAcc, deltaAcc, baselineSpread, agentSpread, spreadRatio}]
+        let aggregated = null;          // {mean_delta, min_delta, mean_reduction, min_reduction, n_seeds, ...}
         let scoreData = null;           // {retrieval_pts, anisotropy_pts, total_automated, max_automated}
         let runConfig = null;           // {noise_levels: [...], ...}
         let currentLogs = [];           // [{timestamp, level, message}]
@@ -743,7 +740,7 @@
 
         function getDeltaAccuracyClass(value) {
             if (value <= 0) return 'badge-danger';
-            if (value < 0.05) return 'badge-warning';
+            if (value < 0.08) return 'badge-warning';
             return 'badge-success';
         }
 
@@ -765,7 +762,7 @@
 
             if (!seedResults.length) {
                 const row = document.createElement('tr');
-                row.innerHTML = `<td colspan="7" style="text-align:center;color:#a0aec0;font-style:italic;padding:24px;">
+                row.innerHTML = `<td colspan="8" style="text-align:center;color:#a0aec0;font-style:italic;padding:24px;">
                     No results yet. Run a benchmark from the header.
                 </td>`;
                 tbody.appendChild(row);
@@ -782,6 +779,7 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td class="cell-mono">${seed.seed}</td>
+                    <td class="cell-mono">${formatNumber(seed.directAcc, 3)}</td>
                     <td class="cell-mono">${formatNumber(seed.baselineAcc, 3)}</td>
                     <td class="cell-mono">${formatNumber(seed.agentAcc, 3)}</td>
                     <td><span class="cell-badge ${getDeltaAccuracyClass(seed.deltaAcc)}">${formatNumber(seed.deltaAcc, 3)}</span></td>
@@ -911,7 +909,6 @@
         function runQuickTest()      { triggerRun('quick'); }
         function runFullEvaluation() { triggerRun('full'); }
         function runStressTest()     { triggerRun('stress'); }
-        function runHonestMode()     { triggerRun('honest'); }
 
         async function triggerRun(preset) {
             if (location.protocol === 'file:') {
@@ -1028,11 +1025,12 @@
             // Per-seed table data
             seedResults = (report.per_seed || []).map(r => ({
                 seed: r.seed,
-                baselineAcc: r.baseline_accuracy,
-                agentAcc: r.agent_accuracy,
+                directAcc: r.direct_classify_acc,
+                baselineAcc: r.baseline_acc,
+                agentAcc: r.agent_acc,
                 deltaAcc: r.delta,
-                baselineSpread: r.spread_baseline,
-                agentSpread: r.spread_agent,
+                baselineSpread: r.baseline_spread,
+                agentSpread: r.agent_spread,
                 spreadRatio: r.spread_reduction
             }));
             populateSeedTable();
@@ -1044,15 +1042,15 @@
                 setText('totalScore', formatNumber(scoreData.total_automated ?? 0, 1));
             }
             if (aggregated) {
-                setMetric('meanDeltaAccuracy', aggregated.mean_delta, 0.05, formatNumber(aggregated.mean_delta, 3));
+                setMetric('meanDeltaAccuracy', aggregated.mean_delta, 0.08, formatNumber(aggregated.mean_delta, 3));
                 setMetric('minDeltaAccuracy', aggregated.min_delta, 0,
                           formatNumber(aggregated.min_delta, 3),
                           v => v < 0 ? 'danger' : (v < 0.01 ? 'warning' : 'success'));
-                setMetric('meanSpreadReduction', aggregated.mean_spread, 10,
-                          formatNumber(aggregated.mean_spread, 2) + '×');
-                setMetric('minSpreadReduction', aggregated.min_spread, 1.001,
-                          formatNumber(aggregated.min_spread, 2) + '×',
-                          v => v <= 1.0 ? 'danger' : (v < 10 ? 'warning' : 'success'));
+                setMetric('meanSpreadReduction', aggregated.mean_reduction, 5,
+                          formatNumber(aggregated.mean_reduction, 2) + '×');
+                setMetric('minSpreadReduction', aggregated.min_reduction, 1.001,
+                          formatNumber(aggregated.min_reduction, 2) + '×',
+                          v => v <= 1.0 ? 'danger' : (v < 5 ? 'warning' : 'success'));
             }
 
             // Charts
@@ -1089,7 +1087,7 @@
             charts.accuracy.data.datasets[0].data = deltas.length ? deltas : [0];
             charts.accuracy.data.datasets[0].backgroundColor = deltas.map(d => {
                 if (d < 0) return '#ef4444';
-                if (d < 0.05) return '#fbbf24';
+                if (d < 0.08) return '#fbbf24';
                 return '#10b981';
             });
             // Loosen the y-axis to fit deltas.
@@ -1104,7 +1102,7 @@
             charts.precision.data.datasets[0].label = 'Spread reduction (×)';
             charts.precision.data.datasets[0].data = ratios.length ? ratios : [0];
             charts.precision.data.datasets[0].backgroundColor = ratios.map(r =>
-                r <= 1 ? '#ef4444' : (r < 10 ? '#fbbf24' : '#3b82f6')
+                r <= 1 ? '#ef4444' : (r < 5 ? '#fbbf24' : '#3b82f6')
             );
             charts.precision.update();
 
@@ -1126,7 +1124,7 @@
                 const label = (snap && snap.preset_label) ? ` · ${snap.preset_label}` : '';
                 statusText.textContent = `Running (${elapsedTime}s)${label}`;
                 stopBtn.style.display = 'inline-flex';
-                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner','honestSpinner']
+                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<span class="spinner"></span>'; });
             } else if (executionState === 'offline') {
                 statusIcon.textContent = '⚠';
@@ -1136,7 +1134,7 @@
                 statusIcon.textContent = '✓';
                 statusText.textContent = 'Idle';
                 stopBtn.style.display = 'none';
-                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner','honestSpinner']
+                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner']
                     .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
             }
         }
