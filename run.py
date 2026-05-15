@@ -1,12 +1,4 @@
-"""
-P-04 benchmark runner.
-
-Usage:
-    python run.py --adapter adapters.dummy:DummyAgent
-    python run.py --adapter adapters.myteam:Engine --seeds 42 101 202 303 404
-    python run.py --adapter adapters.myteam:Engine --out report.json
-    python run.py --adapter adapters.myteam:Engine --format json
-"""
+"""P-04 benchmark runner."""
 from __future__ import annotations
 
 import argparse
@@ -25,8 +17,10 @@ from report_format import print_report
 def agent_factory_from_spec(spec: str) -> Callable[[np.ndarray, dict[str, Any]], Any]:
     module_name, class_name = spec.split(":")
     cls = getattr(importlib.import_module(module_name), class_name)
+
     def factory(X: np.ndarray, params: dict[str, Any]):
         return cls(X, params)
+
     return factory
 
 
@@ -35,23 +29,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--adapter", required=True,
                     help="module:Class, e.g. adapters.myteam:Engine")
     ap.add_argument("--seeds", type=int, nargs="+",
-                    default=[42, 101, 202, 303, 404],
-                    help="Pattern + query seeds (any integers). Multi-seed evaluation is "
-                         "the L2 anti-gaming check — agents must work for ALL seeds.")
-    ap.add_argument("--K", type=int, default=16,
-                    help="Stored patterns per seed (v0 synthetic default).")
-    ap.add_argument("--N", type=int, default=64, help="State dimension.")
+                    default=[42, 101, 202, 303, 404])
+    ap.add_argument("--K", type=int, default=16)
+    ap.add_argument("--N", type=int, default=64)
     ap.add_argument("--noise-levels", type=float, nargs="+",
-                    default=[0.5, 0.7, 0.8],
-                    help="Mask-fraction noise levels for query corruption.")
-    ap.add_argument("--n-per-level", type=int, default=250,
-                    help="Test queries per noise level per seed.")
-    ap.add_argument("--n-anisotropy", type=int, default=16,
-                    help="Number of attractors sampled for the spread check.")
-    ap.add_argument("--format", choices=["table", "json"], default="table",
-                    help="Stdout format. 'table' matches self_check; 'json' dumps raw report.")
-    ap.add_argument("--out", default=None,
-                    help="If set, also write the raw JSON report to this file.")
+                    default=[0.6, 0.75, 0.85])
+    ap.add_argument("--n-per-level", type=int, default=250)
+    ap.add_argument("--n-anisotropy", type=int, default=16)
+    ap.add_argument("--format", choices=["table", "json"], default="table")
+    ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
 
     print(f"[{time.strftime('%H:%M:%S')}] running {len(args.seeds)} seed(s) ...", file=sys.stderr)
@@ -60,7 +46,8 @@ def main(argv: list[str] | None = None) -> int:
     report = run_multi(
         agent_factory=factory,
         seeds=args.seeds,
-        K=args.K, N=args.N,
+        K=args.K,
+        N=args.N,
         noise_levels=args.noise_levels,
         n_per_level=args.n_per_level,
         n_aniso=args.n_anisotropy,
@@ -75,7 +62,6 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, default=str))
     else:
         print_report(report, total_ms)
-
     return 0
 
 

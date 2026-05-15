@@ -1,8 +1,4 @@
-"""
-P-04 self-check.
-
-    python self_check.py --adapter adapters.dummy:DummyAgent --quick
-"""
+"""P-04 self-check."""
 from __future__ import annotations
 
 import argparse
@@ -20,8 +16,10 @@ from report_format import print_advice, print_report
 def agent_factory_from_spec(spec: str) -> Callable[[np.ndarray, dict[str, Any]], Any]:
     module_name, class_name = spec.split(":")
     cls = getattr(importlib.import_module(module_name), class_name)
+
     def factory(X: np.ndarray, params: dict[str, Any]):
         return cls(X, params)
+
     return factory
 
 
@@ -29,19 +27,19 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="P-04 self-check")
     ap.add_argument("--adapter", required=True)
     ap.add_argument("--quick", action="store_true",
-                    help="Smaller K and fewer seeds — fast iteration.")
+                    help="Two seeds, smaller query count — fast iteration.")
     args = ap.parse_args(argv)
 
     if args.quick:
         seeds = [42, 101]
         K, N = 16, 64
-        noise_levels = [0.7, 0.8]
-        n_per_level = 50
-        n_aniso = 5
+        noise_levels = [0.75, 0.85]
+        n_per_level = 60
+        n_aniso = 6
     else:
         seeds = [42, 101, 202, 303, 404]
         K, N = 16, 64
-        noise_levels = [0.5, 0.7, 0.8]
+        noise_levels = [0.6, 0.75, 0.85]
         n_per_level = 250
         n_aniso = 16
 
@@ -50,7 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     report = run_multi(
         agent_factory=factory,
         seeds=seeds,
-        K=K, N=N,
+        K=K,
+        N=N,
         noise_levels=noise_levels,
         n_per_level=n_per_level,
         n_aniso=n_aniso,
@@ -59,7 +58,6 @@ def main(argv: list[str] | None = None) -> int:
 
     print_report(report, total_ms)
     print_advice(report)
-
     return 0
 
 
