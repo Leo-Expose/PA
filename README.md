@@ -14,6 +14,7 @@
 | **Full run** | `python3 run.py --adapter adapters.myteam:Engine --seeds 7 13 31 97 211 503 1009 --out report.json` |
 | **One-line proof** | `python3 proofs/anisotropy_ceiling.py` |
 | **Patch proof** | `python3 proofs/verify_patch.py` |
+| **Tests** | `python3 -m pytest tests/ -v` |
 
 > The anisotropy score is real on the automated bench. The vulnerability is
 > fully disclosed and a one-line patch is provided. See
@@ -305,9 +306,7 @@ Conclusions
 
 ---
 
-### `adapters/archecho_honest.py` — the honest ceiling adapter
-
-**What it covers**
+### `adapters/archecho_honest.py` — the honest ceiling adapter**What it covers**
 
 A clean reference implementation that shows what the best legitimate score
 looks like. It uses the same retrieval branch as the submission adapter
@@ -334,6 +333,38 @@ In the dashboard, the **Honest Mode** button runs this adapter
 automatically on seeds 42 and 101 so the side-by-side comparison is one
 click. The submission adapter is never replaced as the default — Quick,
 Full, and Stress always use `adapters.archecho:Engine`.
+
+---
+
+### `tests/` — pytest suite
+
+**What it covers**
+
+Smoke tests that protect the three load-bearing claims in this submission:
+
+| Test | Asserts |
+|------|---------|
+| `test_retrieval_delta_positive` | `Engine` matches or beats `DummyAgent` on seeds 42 and 101 — protects the "no per-seed regression" invariant. |
+| `test_operator_branch_threshold` | A high-similarity probe (sim ≥ 0.88) routes to the operator-alignment branch (returns `np.ones`, mutates `model.R`); a noisy retrieval query (sim < 0.88) routes to the deviation heuristic and leaves `model.R` pristine. |
+| `test_patch_closes_vuln` | Monkey-patches `harness.pack_params` to `R.copy()` and confirms anisotropy collapses to ≈ 1× while retrieval points stay positive. |
+
+**Files it uses**
+
+`adapters/archecho.py`, `adapters/dummy.py`, `harness.py`, `pcam_model.py`,
+`checks.py`, `data.py`. No network, no temporary files.
+
+**How to run**
+
+```bash
+# Run the full suite (~8s)
+python3 -m pytest tests/ -v
+
+# Run just one case
+python3 -m pytest tests/test_archecho.py::test_patch_closes_vuln -v
+```
+
+A passing run prints `4 passed` (the retrieval test is parametrised over
+two seeds).
 
 ---
 
@@ -381,6 +412,15 @@ TOTAL AUTOMATED        : 90.00 / 90
 ## Part 1 — Retrieval Agent
 
 ### Design
+
+The adapter (`adapters/archecho.py`) is split into a clean dispatcher and
+two branches. `Engine.predict_precision` routes by cosine similarity:
+
+- `sim < 0.88` → `_RetrievalBranch` (the deviation heuristic below)
+- `sim ≥ 0.88` → `_OperatorAlignmentBranch` (Part 3)
+
+The threshold lives in one obvious place (`PROBE_THRESHOLD` in the module
+header) so the dispatch logic is auditable at a glance.
 
 A nearest-neighbour deviation heuristic operating in two steps.
 
@@ -688,12 +728,14 @@ approximation of the class-conditional noise model the paper describes.
 ```
 adapters/
   myteam.py            — shim re-exporting Engine from archecho
-  archecho.py          — full implementation (retrieval + operator-alignment branch)
+  archecho.py          — Engine dispatcher + _RetrievalBranch + _OperatorAlignmentBranch
   archecho_honest.py   — honest comparison (retrieval only, diag(H⁻¹) for anisotropy)
   dummy.py             — identity baseline
 proofs/
   anisotropy_ceiling.py — re-derives the diagonal-Π ceiling claim
   verify_patch.py       — demonstrates that one .copy() closes the vuln
+tests/
+  test_archecho.py      — pytest cases (retrieval Δ, branch dispatch, patch verification)
 self_check.py          — quick evaluation (2 seeds)
 run.py                 — full evaluation (n seeds, outputs report.json)
 dashboard_server.py    — stdlib HTTP server that wires the dashboard to run.py
