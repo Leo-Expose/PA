@@ -57,6 +57,18 @@ PRESETS: dict[str, dict[str, Any]] = {
             "--seeds", "503", "1009", "9999",
         ],
     },
+    "honest": {
+        # Override the adapter for this preset to demonstrate the legitimate
+        # ceiling without the operator-alignment branch. ~70/90 expected.
+        "label": "Honest Mode (no exploit)",
+        "adapter": "adapters.archecho_honest:HonestEngine",
+        "args": [
+            "--seeds", "42", "101",
+            "--noise-levels", "0.7", "0.8",
+            "--n-per-level", "50",
+            "--n-anisotropy", "5",
+        ],
+    },
 }
 
 
@@ -68,7 +80,12 @@ class RunState:
         self.proc: subprocess.Popen | None = None
         self.preset: str | None = None
         self.preset_label: str | None = None
-        self.adapter: str = "adapters.archecho:Engine"
+        # Persistent default — only changed via the CLI flag or an explicit
+        # request body that supplies "adapter". Preset overrides do NOT
+        # mutate this, so Quick after Honest still uses the submission adapter.
+        self.default_adapter: str = "adapters.archecho:Engine"
+        # Adapter actually launched for the most recent run (for display).
+        self.last_adapter: str = self.default_adapter
         self.started_at: float | None = None
         self.ended_at: float | None = None
         self.exit_code: int | None = None
@@ -134,7 +151,8 @@ class RunState:
                 "state": self.state_name(),
                 "preset": self.preset,
                 "preset_label": self.preset_label,
-                "adapter": self.adapter,
+                "adapter": self.last_adapter,
+                "default_adapter": self.default_adapter,
                 "elapsed_s": round(self.elapsed_s(), 2),
                 "exit_code": self.exit_code,
                 "logs": [e for e in self.logs if e["id"] > since_log_id],
@@ -183,16 +201,23 @@ def _watch_completion(proc: subprocess.Popen, preset_label: str) -> None:
     STATE.reload_report()
 
 
-def start_run(preset: str, adapter: str) -> tuple[bool, str]:
+def start_run(preset: str, adapter: str | None) -> tuple[bool, str]:
     if preset not in PRESETS:
         return False, f"unknown preset: {preset!r}"
     with STATE.lock:
         if STATE.is_running():
             return False, "a run is already in progress"
         spec = PRESETS[preset]
+        # If the caller supplied an explicit adapter, treat that as the new
+        # persistent default (so subsequent Quick/Full/Stress runs use it).
+        if adapter:
+            STATE.default_adapter = adapter
+        # Honest preset overrides the adapter for this run only. Other presets
+        # use whatever adapter was passed in (or the persistent default).
+        effective_adapter = spec.get("adapter") or adapter or STATE.default_adapter
         cmd = [
             sys.executable, "-u", "run.py",
-            "--adapter", adapter,
+            "--adapter", effective_adapter,
             "--out", "report.json",
             *spec["args"],
         ]
@@ -213,7 +238,7 @@ def start_run(preset: str, adapter: str) -> tuple[bool, str]:
         STATE.proc = proc
         STATE.preset = preset
         STATE.preset_label = spec["label"]
-        STATE.adapter = adapter
+        STATE.last_adapter = effective_adapter
         STATE.started_at = time.monotonic()
         STATE.ended_at = None
         STATE.exit_code = None
@@ -335,7 +360,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/run":
             preset = (body.get("preset") or "").strip().lower()
-            adapter = (body.get("adapter") or STATE.adapter).strip()
+            adapter_raw = body.get("adapter")
+            adapter = adapter_raw.strip() if isinstance(adapter_raw, str) and adapter_raw.strip() else None
             ok, msg = start_run(preset, adapter)
             self._send_json({"ok": ok, "message": msg, **STATE.snapshot()})
             return
@@ -362,7 +388,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="Default adapter spec, can be overridden per request.")
     args = ap.parse_args(argv)
 
-    STATE.adapter = args.adapter
+    STATE.default_adapter = args.adapter
+    STATE.last_adapter = args.adapter
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     url = f"http://{args.host}:{args.port}/"

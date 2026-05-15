@@ -551,6 +551,10 @@
                     <span id="stressTestSpinner"></span>
                     Run Stress Test (G4)
                 </button>
+                <button class="btn-secondary" onclick="runHonestMode()" title="Same retrieval branch, no operator-alignment exploit. Demonstrates the honest ceiling.">
+                    <span id="honestSpinner"></span>
+                    Honest Mode
+                </button>
                 <button class="btn-danger" id="stopBtn" onclick="stopExecution()" style="display: none;">
                     Stop / Cancel
                 </button>
@@ -907,6 +911,7 @@
         function runQuickTest()      { triggerRun('quick'); }
         function runFullEvaluation() { triggerRun('full'); }
         function runStressTest()     { triggerRun('stress'); }
+        function runHonestMode()     { triggerRun('honest'); }
 
         async function triggerRun(preset) {
             if (location.protocol === 'file:') {
@@ -1121,9 +1126,8 @@
                 const label = (snap && snap.preset_label) ? ` · ${snap.preset_label}` : '';
                 statusText.textContent = `Running (${elapsedTime}s)${label}`;
                 stopBtn.style.display = 'inline-flex';
-                document.getElementById('quickTestSpinner').innerHTML = '<span class="spinner"></span>';
-                document.getElementById('fullEvalSpinner').innerHTML = '<span class="spinner"></span>';
-                document.getElementById('stressTestSpinner').innerHTML = '<span class="spinner"></span>';
+                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner','honestSpinner']
+                    .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<span class="spinner"></span>'; });
             } else if (executionState === 'offline') {
                 statusIcon.textContent = '⚠';
                 statusText.textContent = 'Server offline';
@@ -1132,9 +1136,8 @@
                 statusIcon.textContent = '✓';
                 statusText.textContent = 'Idle';
                 stopBtn.style.display = 'none';
-                document.getElementById('quickTestSpinner').innerHTML = '';
-                document.getElementById('fullEvalSpinner').innerHTML = '';
-                document.getElementById('stressTestSpinner').innerHTML = '';
+                ['quickTestSpinner','fullEvalSpinner','stressTestSpinner','honestSpinner']
+                    .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
             }
         }
 
