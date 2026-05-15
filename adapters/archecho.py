@@ -49,12 +49,11 @@ class Engine(Adapter):
 
         self.posterior_scale = max(self.beta, 10.0)
         self.local_k = min(4, self.K)
-        self.rollout_steps = min(80, max(24, self.T_in // 2))
         self.probe_threshold = PROBE_THRESHOLD
 
         self._pairwise_sims = self.X @ self.X.T
         self._local_indices = self._build_local_indices()
-        self._clusters, self._cluster_of = self._build_clusters()
+        self._clusters = self._build_clusters()
         self._discriminative = self._build_discriminative_profiles()
         self._anisotropy_bank = self._build_anisotropy_bank()
         self._retrieval_selector = self._fit_retrieval_selector()
@@ -104,10 +103,9 @@ class Engine(Adapter):
             profiles[idx] = self._scale_feature(profile)
         return profiles
 
-    def _build_clusters(self) -> tuple[list[np.ndarray], np.ndarray]:
+    def _build_clusters(self) -> list[np.ndarray]:
         cluster_keys: dict[tuple[int, ...], int] = {}
         clusters: list[np.ndarray] = []
-        cluster_of = np.empty(self.K, dtype=np.int64)
         for idx in range(self.K):
             key = tuple(sorted(int(v) for v in self._local_indices[idx]))
             cluster_id = cluster_keys.get(key)
@@ -115,8 +113,7 @@ class Engine(Adapter):
                 cluster_id = len(clusters)
                 cluster_keys[key] = cluster_id
                 clusters.append(np.array(key, dtype=np.int64))
-            cluster_of[idx] = cluster_id
-        return clusters, cluster_of
+        return clusters
 
     def _fit_retrieval_selector(self) -> dict[str, float]:
         queries, truths, levels = make_test_queries(
@@ -371,21 +368,6 @@ class Engine(Adapter):
         mix = max(geometry_mix, near_clean_mix)
         pi = (1.0 - mix) * pi + mix * geometry_pi
         return self._normalise_pi(pi)
-
-    def _rollout_score(self,
-                       query: np.ndarray,
-                       pi: np.ndarray) -> tuple[float, int]:
-        state = self.model.run(query, pi, u_const=query, T_max=self.rollout_steps)
-        norm = np.linalg.norm(state)
-        if norm < 1e-12:
-            return float("-inf"), 0
-        sims = self.X @ (state / norm)
-        order = np.argsort(-sims)
-        best = int(order[0])
-        second = float(sims[order[1]]) if self.K > 1 else -1.0
-        margin = float(sims[best] - second)
-        score = float(sims[best] + 0.75 * margin)
-        return score, best
 
     def _predict_retrieval_index(self,
                                  query: np.ndarray,
