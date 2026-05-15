@@ -4,3 +4,6 @@ PRD v3.md
 Anvil-P-E/
 debug_hessian.py
 __pycache__/
+graphify-out/
+*.pyc
+report.json
