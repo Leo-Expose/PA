@@ -1,3 +1,6 @@
 .kiro/
 PRD v3.md
 .DS_Store
+Anvil-P-E/
+debug_hessian.py
+__pycache__/
