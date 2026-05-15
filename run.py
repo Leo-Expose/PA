@@ -27,7 +27,7 @@ def agent_factory_from_spec(spec: str) -> Callable[[np.ndarray, dict[str, Any]],
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Anvil P-04 · PCAM benchmark")
     ap.add_argument("--adapter", required=True,
-                    help="module:Class, e.g. adapters.myteam:Engine")
+                    help="module:Class, e.g. adapters.archecho:Engine")
     ap.add_argument("--seeds", type=int, nargs="+",
                     default=[42, 101, 202, 303, 404])
     ap.add_argument("--K", type=int, default=16)

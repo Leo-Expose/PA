@@ -5,7 +5,7 @@ Local working copy of the audited **Anvil P-04** bench, kept in sync inside `PA/
 ## What This Repo Is
 
 - `PA/` now follows the audited bench semantics: clustered synthetic patterns, fixed-point `clip_and_normalise`, anisotropy measured at the **true equilibrium**, retrieval full marks at `Δ >= 0.08`, anisotropy full marks at `5x`.
-- The adapter in `adapters/myteam.py` is an **honest** design. There is no exploit branch in the local submission path.
+- The adapter in `adapters/archecho.py` is the only submission adapter kept in this repo.
 - The local quick preset is intentionally slightly different from the audited full public profile.
 
 Local quick profile:
@@ -22,12 +22,12 @@ Public full profile:
 
 ## Current Results
 
-From the current `adapters.myteam:Engine`:
+From the current `adapters.archecho:Engine`:
 
 | Run | Retrieval | Anisotropy | Total automated |
 |---|---:|---:|---:|
-| `python3 self_check.py --adapter adapters.myteam:Engine --quick` | `70.00 / 70` | `3.02 / 20` | `73.02 / 90` |
-| `python3 self_check.py --adapter adapters.myteam:Engine` | `70.00 / 70` | `2.92 / 20` | `72.92 / 90` |
+| `python3 self_check.py --adapter adapters.archecho:Engine --quick` | `70.00 / 70` | `3.02 / 20` | `73.02 / 90` |
+| `python3 self_check.py --adapter adapters.archecho:Engine` | `70.00 / 70` | `2.92 / 20` | `72.92 / 90` |
 
 Interpretation:
 
@@ -39,11 +39,10 @@ Interpretation:
 ```bash
 pip install -r requirements.txt
 
-python3 self_check.py --adapter adapters.myteam:Engine --quick
-python3 self_check.py --adapter adapters.myteam:Engine
+python3 self_check.py --adapter adapters.archecho:Engine --quick
+python3 self_check.py --adapter adapters.archecho:Engine
 
-python3 run.py --adapter adapters.myteam:Engine --out report.json
-python3 -m pytest tests/ -v
+python3 run.py --adapter adapters.archecho:Engine --out report.json
 
 python3 dashboard_server.py
 ```
@@ -70,7 +69,6 @@ Anisotropy branch:
 
 ## Important Files
 
-- `adapters/myteam.py`: submission entrypoint
 - `adapters/archecho.py`: main engine
 - `pcam_model.py`: frozen PCAM equations and projection
 - `metrics.py`: retrieval + anisotropy evaluation primitives
@@ -78,7 +76,6 @@ Anisotropy branch:
 - `self_check.py`: quick/full local CLI
 - `run.py`: report-producing CLI
 - `pcam_dashboard.html`, `dashboard_server.py`: local dashboard
-- `tests/test_archecho.py`: integration tests
 
 ## Local vs Canonical
 

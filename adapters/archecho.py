@@ -22,9 +22,7 @@ class Engine(Adapter):
         self.X = np.asarray(stored_patterns, dtype=np.float64)
         self.K, self.N = self.X.shape
 
-        self.R_ref = np.asarray(model_params["R"], dtype=np.float64)
-        self.R = self.R_ref.copy()
-        self.R_orig = self.R.copy()
+        self.R = np.asarray(model_params["R"], dtype=np.float64).copy()
         self.eta = float(model_params["eta"])
         self.beta = float(model_params["beta"])
         self.dt = float(model_params["dt"])
@@ -58,8 +56,6 @@ class Engine(Adapter):
         self._anisotropy_bank = self._build_anisotropy_bank()
         self._retrieval_selector = self._fit_retrieval_selector()
         self._retrieval_weights = self._fit_retrieval_weights()
-        self._retrieval_operator_alpha = self._fit_retrieval_operator_alpha()
-        self._retrieval_operator_bank = self._build_retrieval_operator_bank()
 
     def _softmax(self, values: np.ndarray) -> np.ndarray:
         z = values - np.max(values)
@@ -255,59 +251,11 @@ class Engine(Adapter):
 
     def _build_anisotropy_bank(self) -> np.ndarray:
         bank = np.empty((self.K, self.N), dtype=np.float64)
-        self._corr_bank = np.empty((self.K, self.N, self.N), dtype=np.float64)
         for idx, pattern in enumerate(self.X):
             equilibrium = self.model.find_equilibrium(pattern)
             H = self.model.hessian(equilibrium)
-            self._corr_bank[idx] = 0.5 * ((self.R_orig - H) + (self.R_orig - H).T)
             bank[idx] = self._optimise_anisotropy_pi(H)
         return bank
-
-    def _fit_retrieval_operator_alpha(self) -> float:
-        queries, truths, _levels = make_test_queries(
-            self.X,
-            noise_levels=[0.75, 0.85],
-            n_per_level=12,
-            seed=161803,
-        )
-
-        best_alpha = 0.0
-        best_acc = float("-inf")
-        eye = np.eye(self.N, dtype=np.float64)
-        for alpha in (0.0, 0.25, 0.5, 0.75):
-            correct = 0
-            for q, truth in zip(queries, truths):
-                best_idx, best_sim, gap, sims = self._nearest_pattern(q)
-                chosen_idx = self._predict_retrieval_index(q, best_idx, best_sim, gap, sims)
-                pi = self._retrieval_candidate_pi(q, chosen_idx, best_sim, sims)
-                R = self.R_orig if alpha == 0.0 else self._corr_bank[chosen_idx] + alpha * eye
-                trial_model = PCAMModel(
-                    self.X,
-                    R,
-                    eta=self.eta,
-                    beta=self.beta,
-                    dt=self.dt,
-                    T_max=self.T_max,
-                    tol=self.tol,
-                    T_in=self.T_in,
-                    pi_min=self.pi_min,
-                    pi_max=self.pi_max,
-                )
-                a_star = trial_model.run(q, pi, u_const=q)
-                if trial_model.classify(a_star) == int(truth):
-                    correct += 1
-            acc = correct / len(queries)
-            if acc > best_acc:
-                best_acc = acc
-                best_alpha = alpha
-        return best_alpha
-
-    def _build_retrieval_operator_bank(self) -> np.ndarray:
-        if self._retrieval_operator_alpha <= 0:
-            return np.repeat(self.R_orig[None, :, :], self.K, axis=0)
-        eye = np.eye(self.N, dtype=np.float64)
-        bank = self._corr_bank + self._retrieval_operator_alpha * eye[None, :, :]
-        return 0.5 * (bank + np.swapaxes(bank, 1, 2))
 
     def _anisotropy_probe_pi(self, sims: np.ndarray) -> np.ndarray:
         order = np.argsort(-sims)
@@ -413,9 +361,7 @@ class Engine(Adapter):
 
     def predict_precision(self, corrupted_query: np.ndarray) -> np.ndarray:
         best_idx, best_sim, gap, sims = self._nearest_pattern(corrupted_query)
-        self.R_ref[:, :] = self.R_orig
         if best_sim >= self.probe_threshold:
             return self._anisotropy_probe_pi(sims)
-        chosen_idx, pi = self._select_retrieval_pi(corrupted_query, best_idx, best_sim, gap, sims)
-        self.R_ref[:, :] = self._retrieval_operator_bank[chosen_idx]
+        _chosen_idx, pi = self._select_retrieval_pi(corrupted_query, best_idx, best_sim, gap, sims)
         return pi
