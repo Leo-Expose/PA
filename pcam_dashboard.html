@@ -535,7 +535,7 @@
                         <span class="status-icon" id="statusIcon">✓</span>
                         <span id="statusText">Idle</span>
                     </div>
-                    <div class="agent-info">Agent: <code id="agentLoaded">adapters.myteam:Engine</code></div>
+                    <div class="agent-info">Agent: <code id="agentLoaded">—</code></div>
                 </div>
             </div>
             <div class="button-group">
@@ -573,21 +573,21 @@
                         <div class="score-item">
                             <div class="score-label">Retrieval Score</div>
                             <div>
-                                <span class="score-value" id="retrievalScore">65</span>
+                                <span class="score-value" id="retrievalScore">—</span>
                                 <span class="score-max">/70</span>
                             </div>
                         </div>
                         <div class="score-item anisotropy">
                             <div class="score-label">Anisotropy Score</div>
                             <div>
-                                <span class="score-value" id="anisotropyScore">18</span>
+                                <span class="score-value" id="anisotropyScore">—</span>
                                 <span class="score-max">/20</span>
                             </div>
                         </div>
                         <div class="score-item total">
                             <div class="score-label">Total Automated Score</div>
                             <div>
-                                <span class="score-value" id="totalScore">83</span>
+                                <span class="score-value" id="totalScore">—</span>
                                 <span class="score-max">/90</span>
                             </div>
                         </div>
@@ -601,7 +601,7 @@
                                 <div class="metric-label">Mean Δ Accuracy</div>
                                 <div class="metric-hint">Target: ≥ 0.05</div>
                             </div>
-                            <div class="metric-value success" id="meanDeltaAccuracy">0.058</div>
+                            <div class="metric-value" id="meanDeltaAccuracy">—</div>
                         </div>
 
                         <div class="metric-card">
@@ -609,7 +609,7 @@
                                 <div class="metric-label">Min Δ Accuracy (Worst Seed)</div>
                                 <div class="metric-hint">Critical: if &lt; 0 → penalty</div>
                             </div>
-                            <div class="metric-value success" id="minDeltaAccuracy">0.050</div>
+                            <div class="metric-value" id="minDeltaAccuracy">—</div>
                         </div>
 
                         <div class="metric-card">
@@ -617,7 +617,7 @@
                                 <div class="metric-label">Mean Spread Reduction</div>
                                 <div class="metric-hint">Target: ≥ 10×</div>
                             </div>
-                            <div class="metric-value success" id="meanSpreadReduction">11.1×</div>
+                            <div class="metric-value" id="meanSpreadReduction">—</div>
                         </div>
 
                         <div class="metric-card">
@@ -625,7 +625,7 @@
                                 <div class="metric-label">Min Spread Reduction (Worst Seed)</div>
                                 <div class="metric-hint">Critical: if ≤ 1.0 → penalty</div>
                             </div>
-                            <div class="metric-value success" id="minSpreadReduction">11.0×</div>
+                            <div class="metric-value" id="minSpreadReduction">—</div>
                         </div>
                     </div>
                 </div>
@@ -708,39 +708,28 @@
     </main>
 
     <script>
-        // Mock Data
-        const mockSeedResults = [
-            { seed: 42, baselineAcc: 0.72, agentAcc: 0.78, deltaAcc: 0.06, baselineSpread: 45.2, agentSpread: 4.1, spreadRatio: 11.02 },
-            { seed: 101, baselineAcc: 0.68, agentAcc: 0.74, deltaAcc: 0.06, baselineSpread: 52.8, agentSpread: 4.8, spreadRatio: 11.0 },
-            { seed: 503, baselineAcc: 0.65, agentAcc: 0.71, deltaAcc: 0.06, baselineSpread: 58.1, agentSpread: 5.2, spreadRatio: 11.17 },
-            { seed: 1009, baselineAcc: 0.70, agentAcc: 0.75, deltaAcc: 0.05, baselineSpread: 48.5, agentSpread: 4.4, spreadRatio: 11.02 },
-            { seed: 9999, baselineAcc: 0.66, agentAcc: 0.72, deltaAcc: 0.06, baselineSpread: 55.3, agentSpread: 4.9, spreadRatio: 11.29 },
-        ];
-
-        const mockLogs = [
-            { timestamp: new Date(Date.now() - 180000), level: 'info', message: 'Starting PCAM Precision Agent evaluation...' },
-            { timestamp: new Date(Date.now() - 175000), level: 'info', message: 'Loaded agent adapter: adapters.myteam:Engine' },
-            { timestamp: new Date(Date.now() - 170000), level: 'info', message: 'Running Quick Test (G1) with seeds: 42, 101' },
-            { timestamp: new Date(Date.now() - 90000), level: 'success', message: '✓ Seed 42 completed: Δ Accuracy = 0.06, Spread Reduction = 11.02x' },
-            { timestamp: new Date(Date.now() - 45000), level: 'success', message: '✓ Seed 101 completed: Δ Accuracy = 0.06, Spread Reduction = 11.0x' },
-            { timestamp: new Date(Date.now() - 30000), level: 'info', message: 'Quick Test completed in 180 seconds' },
-            { timestamp: new Date(Date.now() - 25000), level: 'info', message: 'Mean Δ Accuracy: 0.06 (✓ Passes threshold ≥ 0.05)' },
-            { timestamp: new Date(Date.now() - 20000), level: 'info', message: 'Mean Spread Reduction: 11.01x (✓ Passes threshold ≥ 10x)' },
-            { timestamp: new Date(Date.now() - 15000), level: 'success', message: '✓ All critical thresholds passed!' },
-        ];
-
-        let currentLogs = [...mockLogs];
+        // Live state. The dashboard now talks to dashboard_server.py over HTTP.
+        let seedResults = [];           // [{seed, baselineAcc, agentAcc, deltaAcc, baselineSpread, agentSpread, spreadRatio}]
+        let aggregated = null;          // {mean_delta, min_delta, mean_spread, min_spread, n_seeds, ...}
+        let scoreData = null;           // {retrieval_pts, anisotropy_pts, total_automated, max_automated}
+        let runConfig = null;           // {noise_levels: [...], ...}
+        let currentLogs = [];           // [{timestamp, level, message}]
+        let lastLogId = 0;              // server-side monotonic id
         let executionState = 'idle';
         let elapsedTime = 0;
         let currentSortField = 'seed';
         let currentSortDirection = 'asc';
         let charts = {};
+        let statusTimer = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             populateSeedTable();
             initializeCharts();
             updateLogs();
+            // Kick off polling immediately so the UI reflects any prior report.json.
+            pollStatus();
+            statusTimer = setInterval(pollStatus, 1000);
         });
 
         // Utility Functions
@@ -769,8 +758,17 @@
         function populateSeedTable() {
             const tbody = document.getElementById('seedTableBody');
             tbody.innerHTML = '';
-            
-            const sorted = [...mockSeedResults].sort((a, b) => {
+
+            if (!seedResults.length) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="7" style="text-align:center;color:#a0aec0;font-style:italic;padding:24px;">
+                    No results yet. Run a benchmark from the header.
+                </td>`;
+                tbody.appendChild(row);
+                return;
+            }
+
+            const sorted = [...seedResults].sort((a, b) => {
                 let aVal = a[currentSortField];
                 let bVal = b[currentSortField];
                 return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
@@ -783,8 +781,8 @@
                     <td class="cell-mono">${formatNumber(seed.baselineAcc, 3)}</td>
                     <td class="cell-mono">${formatNumber(seed.agentAcc, 3)}</td>
                     <td><span class="cell-badge ${getDeltaAccuracyClass(seed.deltaAcc)}">${formatNumber(seed.deltaAcc, 3)}</span></td>
-                    <td class="cell-mono">${formatNumber(seed.baselineSpread, 1)}</td>
-                    <td class="cell-mono">${formatNumber(seed.agentSpread, 1)}</td>
+                    <td class="cell-mono">${formatNumber(seed.baselineSpread, 2)}</td>
+                    <td class="cell-mono">${formatNumber(seed.agentSpread, 2)}</td>
                     <td><span class="cell-badge ${getSpreadReductionClass(seed.spreadRatio)}">${formatNumber(seed.spreadRatio, 2)}×</span></td>
                 `;
                 tbody.appendChild(row);
@@ -834,41 +832,16 @@
                 }
             };
 
-            // Accuracy by Noise Chart
+            // Per-seed Δ accuracy bars (populated from /api/status report).
             const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
             charts.accuracy = new Chart(accuracyCtx, {
                 type: 'bar',
                 data: {
-                    labels: ['p=0.5', 'p=0.7', 'p=0.8'],
+                    labels: [],
                     datasets: [{
-                        label: 'Accuracy (%)',
-                        data: [92, 78, 65],
-                        backgroundColor: ['#10b981', '#fbbf24', '#ef4444'],
-                        borderRadius: 4,
-                        borderSkipped: false
-                    }]
-                },
-                options: {
-                    ...chartOptions,
-                    scales: {
-                        ...chartOptions.scales,
-                        y: { ...chartOptions.scales.y, max: 100 }
-                    }
-                }
-            });
-
-            // Precision Distribution Chart
-            const precisionCtx = document.getElementById('precisionChart').getContext('2d');
-            charts.precision = new Chart(precisionCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['0.1-0.2', '0.2-0.3', '0.3-0.4', '0.4-0.5', '0.5-0.6', '0.6-0.7', '0.7-0.8', '0.8-0.9', '0.9-1.0', '10.0'],
-                    datasets: [{
-                        label: 'Count',
-                        data: [2, 3, 5, 8, 12, 15, 14, 6, 2, 1],
-                        backgroundColor: (context) => {
-                            return context.dataIndex === 9 ? '#ef4444' : '#3b82f6';
-                        },
+                        label: 'Δ Accuracy',
+                        data: [],
+                        backgroundColor: '#3b82f6',
                         borderRadius: 4,
                         borderSkipped: false
                     }]
@@ -876,16 +849,33 @@
                 options: chartOptions
             });
 
-            // Eigenvalue Spread Chart
+            // Spread reduction per seed.
+            const precisionCtx = document.getElementById('precisionChart').getContext('2d');
+            charts.precision = new Chart(precisionCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Spread reduction (×)',
+                        data: [],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: chartOptions
+            });
+
+            // Baseline vs agent spread per seed.
             const eigenvalueCtx = document.getElementById('eigenvalueChart').getContext('2d');
             charts.eigenvalue = new Chart(eigenvalueCtx, {
                 type: 'line',
                 data: {
-                    labels: Array.from({length: 20}, (_, i) => i + 1),
+                    labels: [],
                     datasets: [
                         {
-                            label: 'Baseline',
-                            data: [0.2, 0.5, 1.2, 2.1, 3.5, 5.2, 8.1, 12.5, 18.3, 25.7, 35.2, 48.1, 62.5, 78.9, 95.2, 112.3, 128.7, 142.1, 152.3, 158.9],
+                            label: 'Baseline spread',
+                            data: [],
                             borderColor: '#ef4444',
                             backgroundColor: 'rgba(239, 68, 68, 0.1)',
                             tension: 0.4,
@@ -893,8 +883,8 @@
                             fill: true
                         },
                         {
-                            label: 'Agent',
-                            data: [0.15, 0.4, 0.8, 1.3, 1.8, 2.2, 2.6, 3.1, 3.5, 3.8, 4.1, 4.3, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0, 5.1, 5.2],
+                            label: 'Agent spread',
+                            data: [],
                             borderColor: '#10b981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             tension: 0.4,
@@ -913,63 +903,235 @@
             });
         }
 
-        // Execution Functions
-        function runQuickTest() {
-            startExecution('Quick Test (G1)', 3);
-        }
+        // Execution Functions — wired to dashboard_server.py
+        function runQuickTest()      { triggerRun('quick'); }
+        function runFullEvaluation() { triggerRun('full'); }
+        function runStressTest()     { triggerRun('stress'); }
 
-        function runFullEvaluation() {
-            startExecution('Full Evaluation (G3)', 5);
-        }
-
-        function runStressTest() {
-            startExecution('Stress Test (G4)', 4);
-        }
-
-        function startExecution(testName, duration) {
-            executionState = 'running';
-            elapsedTime = 0;
-            updateStatus();
-            document.getElementById('stopBtn').style.display = 'inline-flex';
-
-            addLog('info', `Starting ${testName}...`);
-
-            const interval = setInterval(() => {
-                elapsedTime++;
-                updateStatus();
-
-                if (elapsedTime >= duration) {
-                    clearInterval(interval);
-                    executionState = 'idle';
-                    elapsedTime = 0;
-                    updateStatus();
-                    document.getElementById('stopBtn').style.display = 'none';
-                    addLog('success', `${testName} completed!`);
+        async function triggerRun(preset) {
+            if (location.protocol === 'file:') {
+                addLocalLog('error',
+                    'Open the dashboard via the server (http://127.0.0.1:8765/), not the file:// URL. ' +
+                    'Start it with: python dashboard_server.py');
+                return;
+            }
+            try {
+                const res = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({preset})
+                });
+                const data = await res.json();
+                if (!data.ok) {
+                    addLocalLog('error', data.message || 'Failed to start run');
                 }
-            }, 1000);
+                applySnapshot(data);
+            } catch (err) {
+                addLocalLog('error',
+                    'Cannot reach dashboard server. Start it with: python dashboard_server.py');
+            }
         }
 
-        function stopExecution() {
-            executionState = 'idle';
-            elapsedTime = 0;
-            updateStatus();
-            document.getElementById('stopBtn').style.display = 'none';
-            addLog('warning', 'Execution stopped by user');
+        async function stopExecution() {
+            try {
+                const res = await fetch('/api/stop', {method: 'POST'});
+                const data = await res.json();
+                if (!data.ok) addLocalLog('warning', data.message || 'Nothing to stop');
+                applySnapshot(data);
+            } catch (err) {
+                addLocalLog('error', 'Cannot reach dashboard server.');
+            }
         }
 
-        function updateStatus() {
+        async function pollStatus() {
+            try {
+                const res = await fetch(`/api/status?since=${lastLogId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (executionState === 'offline') {
+                    // Reconnected. Wipe the offline notice so logs read clean.
+                    addLocalLog('success', 'Connected to dashboard server.');
+                }
+                applySnapshot(data);
+            } catch (err) {
+                if (executionState !== 'offline') {
+                    executionState = 'offline';
+                    // Wipe stale numbers so the user does not mistake them for live data.
+                    seedResults = [];
+                    aggregated = null;
+                    scoreData = null;
+                    populateSeedTable();
+                    ['retrievalScore','anisotropyScore','totalScore',
+                     'meanDeltaAccuracy','minDeltaAccuracy','meanSpreadReduction','minSpreadReduction']
+                        .forEach(id => { const el = document.getElementById(id); if (el) { el.textContent = '—'; el.classList.remove('success','warning','danger'); } });
+                    if (charts.accuracy)   { charts.accuracy.data.labels = [];   charts.accuracy.data.datasets[0].data = [];   charts.accuracy.update(); }
+                    if (charts.precision)  { charts.precision.data.labels = [];  charts.precision.data.datasets[0].data = [];  charts.precision.update(); }
+                    if (charts.eigenvalue) { charts.eigenvalue.data.labels = []; charts.eigenvalue.data.datasets.forEach(ds => ds.data = []); charts.eigenvalue.update(); }
+                    addLocalLog('warning',
+                        'Dashboard server is not running. Start it with: ' +
+                        'python dashboard_server.py — then refresh this page.');
+                }
+                const statusIcon = document.getElementById('statusIcon');
+                const statusText = document.getElementById('statusText');
+                statusIcon.textContent = '⚠';
+                statusText.textContent = 'Server offline · run python dashboard_server.py';
+            }
+        }
+
+        function applySnapshot(snap) {
+            if (!snap) return;
+            // Logs (incremental)
+            if (Array.isArray(snap.logs) && snap.logs.length) {
+                snap.logs.forEach(entry => {
+                    currentLogs.push({
+                        timestamp: entry.ts ? new Date(entry.ts) : new Date(),
+                        level: entry.level || 'info',
+                        message: entry.message || ''
+                    });
+                    if (typeof entry.id === 'number') lastLogId = Math.max(lastLogId, entry.id);
+                });
+                updateLogs();
+            } else if (typeof snap.next_log_id === 'number' && snap.next_log_id - 1 < lastLogId) {
+                // Server cleared logs — reset our buffer too.
+                currentLogs = [];
+                lastLogId = 0;
+                updateLogs();
+            }
+
+            // Execution state + elapsed
+            executionState = snap.state || 'idle';
+            elapsedTime = Math.round(snap.elapsed_s || 0);
+            updateStatus(snap);
+
+            // Adapter label in header
+            if (snap.adapter) {
+                const el = document.getElementById('agentLoaded');
+                if (el) el.textContent = snap.adapter;
+            }
+
+            // Report → scorecard, table, charts
+            if (snap.report && snap.report.aggregated) {
+                applyReport(snap.report);
+            }
+        }
+
+        function applyReport(report) {
+            runConfig = report.config || null;
+            aggregated = report.aggregated || null;
+            scoreData = report.score || null;
+
+            // Per-seed table data
+            seedResults = (report.per_seed || []).map(r => ({
+                seed: r.seed,
+                baselineAcc: r.baseline_accuracy,
+                agentAcc: r.agent_accuracy,
+                deltaAcc: r.delta,
+                baselineSpread: r.spread_baseline,
+                agentSpread: r.spread_agent,
+                spreadRatio: r.spread_reduction
+            }));
+            populateSeedTable();
+
+            // Scorecard
+            if (scoreData) {
+                setText('retrievalScore', formatNumber(scoreData.retrieval_pts ?? 0, 1));
+                setText('anisotropyScore', formatNumber(scoreData.anisotropy_pts ?? 0, 1));
+                setText('totalScore', formatNumber(scoreData.total_automated ?? 0, 1));
+            }
+            if (aggregated) {
+                setMetric('meanDeltaAccuracy', aggregated.mean_delta, 0.05, formatNumber(aggregated.mean_delta, 3));
+                setMetric('minDeltaAccuracy', aggregated.min_delta, 0,
+                          formatNumber(aggregated.min_delta, 3),
+                          v => v < 0 ? 'danger' : (v < 0.01 ? 'warning' : 'success'));
+                setMetric('meanSpreadReduction', aggregated.mean_spread, 10,
+                          formatNumber(aggregated.mean_spread, 2) + '×');
+                setMetric('minSpreadReduction', aggregated.min_spread, 1.001,
+                          formatNumber(aggregated.min_spread, 2) + '×',
+                          v => v <= 1.0 ? 'danger' : (v < 10 ? 'warning' : 'success'));
+            }
+
+            // Charts
+            updateCharts(report);
+        }
+
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        function setMetric(id, value, threshold, displayText, classifierFn) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = displayText;
+            const cls = classifierFn ? classifierFn(value) : (
+                value < threshold ? (value < threshold * 0.5 ? 'danger' : 'warning') : 'success'
+            );
+            el.classList.remove('success', 'warning', 'danger');
+            el.classList.add(cls);
+        }
+
+        function updateCharts(report) {
+            if (!charts.accuracy) return;
+            const cfg = report.config || {};
+
+            // Per-seed Δ accuracy across the run, grouped by noise level if available.
+            // The current harness emits one accuracy per seed (averaged over noise),
+            // so we render Δ accuracy bars per seed and label by configured noise levels.
+            const seeds = (report.per_seed || []).map(r => `seed ${r.seed}`);
+            const deltas = (report.per_seed || []).map(r => r.delta);
+            charts.accuracy.data.labels = seeds.length ? seeds : ['—'];
+            charts.accuracy.data.datasets[0].label = `Δ Accuracy (noise ${(cfg.noise_levels || []).join(', ')})`;
+            charts.accuracy.data.datasets[0].data = deltas.length ? deltas : [0];
+            charts.accuracy.data.datasets[0].backgroundColor = deltas.map(d => {
+                if (d < 0) return '#ef4444';
+                if (d < 0.05) return '#fbbf24';
+                return '#10b981';
+            });
+            // Loosen the y-axis to fit deltas.
+            charts.accuracy.options.scales.y.max = undefined;
+            charts.accuracy.options.scales.y.suggestedMin = Math.min(0, ...deltas, -0.02);
+            charts.accuracy.options.scales.y.suggestedMax = Math.max(0.1, ...deltas);
+            charts.accuracy.update();
+
+            // Spread reduction per seed → reuse the precision chart panel.
+            const ratios = (report.per_seed || []).map(r => r.spread_reduction);
+            charts.precision.data.labels = seeds.length ? seeds : ['—'];
+            charts.precision.data.datasets[0].label = 'Spread reduction (×)';
+            charts.precision.data.datasets[0].data = ratios.length ? ratios : [0];
+            charts.precision.data.datasets[0].backgroundColor = ratios.map(r =>
+                r <= 1 ? '#ef4444' : (r < 10 ? '#fbbf24' : '#3b82f6')
+            );
+            charts.precision.update();
+
+            // Eigenvalue panel: baseline vs agent spread, sorted by seed.
+            const sortedSeeds = [...(report.per_seed || [])].sort((a,b) => a.seed - b.seed);
+            charts.eigenvalue.data.labels = sortedSeeds.map(r => `seed ${r.seed}`);
+            charts.eigenvalue.data.datasets[0].data = sortedSeeds.map(r => r.spread_baseline);
+            charts.eigenvalue.data.datasets[1].data = sortedSeeds.map(r => r.spread_agent);
+            charts.eigenvalue.update();
+        }
+
+        function updateStatus(snap) {
             const statusIcon = document.getElementById('statusIcon');
             const statusText = document.getElementById('statusText');
+            const stopBtn = document.getElementById('stopBtn');
 
             if (executionState === 'running') {
                 statusIcon.textContent = '⏱️';
-                statusText.textContent = `Running (${elapsedTime}s)`;
+                const label = (snap && snap.preset_label) ? ` · ${snap.preset_label}` : '';
+                statusText.textContent = `Running (${elapsedTime}s)${label}`;
+                stopBtn.style.display = 'inline-flex';
                 document.getElementById('quickTestSpinner').innerHTML = '<span class="spinner"></span>';
                 document.getElementById('fullEvalSpinner').innerHTML = '<span class="spinner"></span>';
                 document.getElementById('stressTestSpinner').innerHTML = '<span class="spinner"></span>';
+            } else if (executionState === 'offline') {
+                statusIcon.textContent = '⚠';
+                statusText.textContent = 'Server offline';
+                stopBtn.style.display = 'none';
             } else {
                 statusIcon.textContent = '✓';
                 statusText.textContent = 'Idle';
+                stopBtn.style.display = 'none';
                 document.getElementById('quickTestSpinner').innerHTML = '';
                 document.getElementById('fullEvalSpinner').innerHTML = '';
                 document.getElementById('stressTestSpinner').innerHTML = '';
@@ -977,12 +1139,9 @@
         }
 
         // Logs Functions
-        function addLog(level, message) {
-            currentLogs.push({
-                timestamp: new Date(),
-                level: level,
-                message: message
-            });
+        function addLocalLog(level, message) {
+            // Local-only log (e.g. network errors). Server logs flow through pollStatus.
+            currentLogs.push({timestamp: new Date(), level, message});
             updateLogs();
         }
 
@@ -1001,7 +1160,7 @@
                 <div class="log-entry">
                     <span class="log-icon ${log.level}">${getLogIcon(log.level)}</span>
                     <span class="log-time">[${log.timestamp.toLocaleTimeString()}]</span>
-                    <span class="log-message">${log.message}</span>
+                    <span class="log-message">${escapeHtml(log.message)}</span>
                 </div>
             `).join('');
 
@@ -1018,17 +1177,25 @@
             }
         }
 
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
         function copyLogs() {
-            const logText = currentLogs.map(log => 
+            const logText = currentLogs.map(log =>
                 `[${log.timestamp.toLocaleTimeString()}] ${log.level.toUpperCase()}: ${log.message}`
             ).join('\n');
             navigator.clipboard.writeText(logText);
-            alert('Logs copied to clipboard!');
         }
 
-        function clearLogs() {
+        async function clearLogs() {
             currentLogs = [];
+            lastLogId = 0;
             updateLogs();
+            try { await fetch('/api/logs/clear', {method: 'POST'}); } catch (_) {}
         }
     </script>
 </body>
