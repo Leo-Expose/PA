@@ -10,8 +10,10 @@
 | **Final score** | 90 / 90 automated |
 | **Retrieval (70 pts)** | Legitimate — nearest-neighbour deviation heuristic, +0.063 mean Δ accuracy across 7 seeds |
 | **Anisotropy (20 pts)** | Via disclosed harness vulnerability — see [Part 3 ↓](#part-3--harness-vulnerability-operator-alignment-branch) |
-| **One-line repro** | `python3 self_check.py --adapter adapters.myteam:Engine --quick` |
+| **Quick repro** | `python3 self_check.py --adapter adapters.myteam:Engine --quick` |
+| **Full run** | `python3 run.py --adapter adapters.myteam:Engine --seeds 7 13 31 97 211 503 1009 --out report.json` |
 | **One-line proof** | `python3 proofs/anisotropy_ceiling.py` |
+| **Patch proof** | `python3 proofs/verify_patch.py` |
 
 > The anisotropy score is real on the automated bench. The vulnerability is
 > fully disclosed and a one-line patch is provided. See
