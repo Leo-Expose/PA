@@ -3,7 +3,9 @@ P-04 benchmark runner.
 
 Usage:
     python run.py --adapter adapters.dummy:DummyAgent
-    python run.py --adapter adapters.myteam:Engine --seeds 42 101 202 303 404 --out report.json
+    python run.py --adapter adapters.myteam:Engine --seeds 42 101 202 303 404
+    python run.py --adapter adapters.myteam:Engine --out report.json
+    python run.py --adapter adapters.myteam:Engine --format json
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from typing import Any, Callable
 import numpy as np
 
 from harness import run_multi
+from report_format import print_report
 
 
 def agent_factory_from_spec(spec: str) -> Callable[[np.ndarray, dict[str, Any]], Any]:
@@ -45,11 +48,15 @@ def main(argv: list[str] | None = None) -> int:
                     help="Test queries per noise level per seed.")
     ap.add_argument("--n-anisotropy", type=int, default=16,
                     help="Number of attractors sampled for the spread check.")
-    ap.add_argument("--out", default="-")
+    ap.add_argument("--format", choices=["table", "json"], default="table",
+                    help="Stdout format. 'table' matches self_check; 'json' dumps raw report.")
+    ap.add_argument("--out", default=None,
+                    help="If set, also write the raw JSON report to this file.")
     args = ap.parse_args(argv)
 
     print(f"[{time.strftime('%H:%M:%S')}] running {len(args.seeds)} seed(s) ...", file=sys.stderr)
     factory = agent_factory_from_spec(args.adapter)
+    t0 = time.monotonic()
     report = run_multi(
         agent_factory=factory,
         seeds=args.seeds,
@@ -58,13 +65,17 @@ def main(argv: list[str] | None = None) -> int:
         n_per_level=args.n_per_level,
         n_aniso=args.n_anisotropy,
     )
+    total_ms = (time.monotonic() - t0) * 1000.0
 
-    payload = json.dumps(report, indent=2, default=str)
-    if args.out == "-":
-        print(payload)
-    else:
+    if args.out:
         with open(args.out, "w") as f:
-            f.write(payload)
+            f.write(json.dumps(report, indent=2, default=str))
+
+    if args.format == "json":
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        print_report(report, total_ms)
+
     return 0
 
 

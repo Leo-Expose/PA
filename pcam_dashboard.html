@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCAM Precision Agent Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 3px solid #3b82f6;
+        }
+
+        .header-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .status-box {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-icon {
+            font-size: 16px;
+        }
+
+        .agent-info {
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .agent-info code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1a202c;
+            border: 1px solid #cbd5e0;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #f7fafc;
+            border-color: #a0aec0;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Main Container */
+        main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Styles */
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .card-content {
+            padding: 20px;
+        }
+
+        /* Scorecard */
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .score-item {
+            background: linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%);
+            border: 2px solid #dbeafe;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .score-item.anisotropy {
+            border-color: #bbf7d0;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        }
+
+        .score-item.total {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%);
+        }
+
+        .score-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .score-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .score-item.anisotropy .score-value {
+            color: #10b981;
+        }
+
+        .score-item.total .score-value {
+            color: #3b82f6;
+        }
+
+        .score-max {
+            font-size: 14px;
+            color: #a0aec0;
+            margin-left: 4px;
+        }
+
+        /* Metric Cards */
+        .metrics-section {
+            margin-top: 16px;
+        }
+
+        .metrics-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .metric-hint {
+            font-size: 10px;
+            color: #a0aec0;
+            margin-top: 2px;
+        }
+
+        .metric-value {
+            background: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .metric-value.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .metric-value.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .metric-value.danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            background: #f7fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #1a202c;
+            border-bottom: 2px solid #cbd5e0;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover {
+            background: #edf2f7;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:hover {
+            background: #f7fafc;
+        }
+
+        .sort-indicator {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 10px;
+        }
+
+        .cell-mono {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .cell-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 280px;
+            margin-top: 12px;
+        }
+
+        /* Logs */
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f7fafc;
+            padding: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .logs-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .logs-count {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .logs-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .logs-content {
+            background: #1a202c;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 4px;
+            padding: 4px;
+            border-radius: 3px;
+            transition: background 0.2s ease;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-icon {
+            flex-shrink: 0;
+            width: 16px;
+            text-align: center;
+        }
+
+        .log-icon.info { color: #60a5fa; }
+        .log-icon.warning { color: #fbbf24; }
+        .log-icon.error { color: #f87171; }
+        .log-icon.success { color: #34d399; }
+
+        .log-time {
+            flex-shrink: 0;
+            color: #9ca3af;
+        }
+
+        .log-message {
+            flex: 1;
+            color: #d1d5db;
+            word-break: break-word;
+        }
+
+        .logs-empty {
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-top {
+                flex-direction: column;
+            }
+
+            .button-group {
+                width: 100%;
+            }
+
+            button {
+                flex: 1;
+                justify-content: center;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .score-value {
+                font-size: 28px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="header-top">
+                <div>
+                    <h1>PCAM Precision Agent Dashboard</h1>
+                    <p class="header-subtitle">Benchmark Analysis & Performance Tracking</p>
+                </div>
+                <div class="status-box">
+                    <div class="status-indicator">
+                        <span class="status-icon" id="statusIcon">✓</span>
+                        <span id="statusText">Idle</span>
+                    </div>
+                    <div class="agent-info">Agent: <code id="agentLoaded">adapters.myteam:Engine</code></div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="runQuickTest()">
+                    <span id="quickTestSpinner"></span>
+                    Run Quick Test (G1)
+                </button>
+                <button class="btn-secondary" onclick="runFullEvaluation()">
+                    <span id="fullEvalSpinner"></span>
+                    Run Full Evaluation (G3)
+                </button>
+                <button class="btn-secondary" onclick="runStressTest()">
+                    <span id="stressTestSpinner"></span>
+                    Run Stress Test (G4)
+                </button>
+                <button class="btn-danger" id="stopBtn" onclick="stopExecution()" style="display: none;">
+                    Stop / Cancel
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Scorecard Panel -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Main Scorecard</div>
+                    <div class="card-subtitle">Top-level results & key metrics</div>
+                </div>
+                <div class="card-content">
+                    <div class="score-display">
+                        <div class="score-item">
+                            <div class="score-label">Retrieval Score</div>
+                            <div>
+                                <span class="score-value" id="retrievalScore">65</span>
+                                <span class="score-max">/70</span>
+                            </div>
+                        </div>
+                        <div class="score-item anisotropy">
+                            <div class="score-label">Anisotropy Score</div>
+                            <div>
+                                <span class="score-value" id="anisotropyScore">18</span>
+                                <span class="score-max">/20</span>
+                            </div>
+                        </div>
+                        <div class="score-item total">
+                            <div class="score-label">Total Automated Score</div>
+                            <div>
+                                <span class="score-value" id="totalScore">83</span>
+                                <span class="score-max">/90</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metrics-section">
+                        <div class="metrics-title">Key Metrics</div>
+
+                        <div class="metric-card">
+                            <div>
+                                <div class="metric-label">Mean Δ Accuracy</div>
+                                <div class="metric-hint">Target: ≥ 0.05</div>
+                            </div>
+                            <div class="metric-value success" id="meanDeltaAccuracy">0.058</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div>
+                                <div class="metric-label">Min Δ Accuracy (Worst Seed)</div>
+                                <div class="metric-hint">Critical: if &lt; 0 → penalty</div>
+                            </div>
+                            <div class="metric-value success" id="minDeltaAccuracy">0.050</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div>
+                                <div class="metric-label">Mean Spread Reduction</div>
+                                <div class="metric-hint">Target: ≥ 10×</div>
+                            </div>
+                            <div class="metric-value success" id="meanSpreadReduction">11.1×</div>
+                        </div>
+
+                        <div class="metric-card">
+                            <div>
+                                <div class="metric-label">Min Spread Reduction (Worst Seed)</div>
+                                <div class="metric-hint">Critical: if ≤ 1.0 → penalty</div>
+                            </div>
+                            <div class="metric-value success" id="minSpreadReduction">11.0×</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Per-Seed Table -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Per-Seed Breakdown</div>
+                    <div class="card-subtitle">Click column headers to sort. Red values indicate failures.</div>
+                </div>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table id="seedTable">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortTable('seed')">Seed ID <span class="sort-indicator" id="sort-seed"></span></th>
+                                    <th onclick="sortTable('baselineAcc')">Baseline Acc <span class="sort-indicator" id="sort-baselineAcc"></span></th>
+                                    <th onclick="sortTable('agentAcc')">Agent Acc <span class="sort-indicator" id="sort-agentAcc"></span></th>
+                                    <th onclick="sortTable('deltaAcc')">Δ Acc <span class="sort-indicator" id="sort-deltaAcc"></span></th>
+                                    <th onclick="sortTable('baselineSpread')">Baseline Spread <span class="sort-indicator" id="sort-baselineSpread"></span></th>
+                                    <th onclick="sortTable('agentSpread')">Agent Spread <span class="sort-indicator" id="sort-agentSpread"></span></th>
+                                    <th onclick="sortTable('spreadRatio')">Spread Ratio <span class="sort-indicator" id="sort-spreadRatio"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="seedTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Panel -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Analytics & Diagnostics</div>
+                    <div class="card-subtitle">Performance visualizations</div>
+                </div>
+                <div class="card-content">
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: #1a202c;">Query Accuracy by Noise</h3>
+                        <div class="chart-container">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: #1a202c;">Precision Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="precisionChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: #1a202c;">Eigenvalue Spread</h3>
+                        <div class="chart-container">
+                            <canvas id="eigenvalueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Panel -->
+        <div class="card">
+            <div class="logs-header">
+                <div>
+                    <span class="logs-title">Raw Logs / Terminal Output</span>
+                    <span class="logs-count" id="logCount"> (0 entries)</span>
+                </div>
+                <div class="logs-buttons">
+                    <button class="btn-secondary" onclick="copyLogs()" style="padding: 6px 12px; font-size: 12px;">Copy</button>
+                    <button class="btn-secondary" onclick="clearLogs()" style="padding: 6px 12px; font-size: 12px;">Clear</button>
+                </div>
+            </div>
+            <div class="logs-content" id="logsContent">
+                <div class="logs-empty">No logs yet...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Mock Data
+        const mockSeedResults = [
+            { seed: 42, baselineAcc: 0.72, agentAcc: 0.78, deltaAcc: 0.06, baselineSpread: 45.2, agentSpread: 4.1, spreadRatio: 11.02 },
+            { seed: 101, baselineAcc: 0.68, agentAcc: 0.74, deltaAcc: 0.06, baselineSpread: 52.8, agentSpread: 4.8, spreadRatio: 11.0 },
+            { seed: 503, baselineAcc: 0.65, agentAcc: 0.71, deltaAcc: 0.06, baselineSpread: 58.1, agentSpread: 5.2, spreadRatio: 11.17 },
+            { seed: 1009, baselineAcc: 0.70, agentAcc: 0.75, deltaAcc: 0.05, baselineSpread: 48.5, agentSpread: 4.4, spreadRatio: 11.02 },
+            { seed: 9999, baselineAcc: 0.66, agentAcc: 0.72, deltaAcc: 0.06, baselineSpread: 55.3, agentSpread: 4.9, spreadRatio: 11.29 },
+        ];
+
+        const mockLogs = [
+            { timestamp: new Date(Date.now() - 180000), level: 'info', message: 'Starting PCAM Precision Agent evaluation...' },
+            { timestamp: new Date(Date.now() - 175000), level: 'info', message: 'Loaded agent adapter: adapters.myteam:Engine' },
+            { timestamp: new Date(Date.now() - 170000), level: 'info', message: 'Running Quick Test (G1) with seeds: 42, 101' },
+            { timestamp: new Date(Date.now() - 90000), level: 'success', message: '✓ Seed 42 completed: Δ Accuracy = 0.06, Spread Reduction = 11.02x' },
+            { timestamp: new Date(Date.now() - 45000), level: 'success', message: '✓ Seed 101 completed: Δ Accuracy = 0.06, Spread Reduction = 11.0x' },
+            { timestamp: new Date(Date.now() - 30000), level: 'info', message: 'Quick Test completed in 180 seconds' },
+            { timestamp: new Date(Date.now() - 25000), level: 'info', message: 'Mean Δ Accuracy: 0.06 (✓ Passes threshold ≥ 0.05)' },
+            { timestamp: new Date(Date.now() - 20000), level: 'info', message: 'Mean Spread Reduction: 11.01x (✓ Passes threshold ≥ 10x)' },
+            { timestamp: new Date(Date.now() - 15000), level: 'success', message: '✓ All critical thresholds passed!' },
+        ];
+
+        let currentLogs = [...mockLogs];
+        let executionState = 'idle';
+        let elapsedTime = 0;
+        let currentSortField = 'seed';
+        let currentSortDirection = 'asc';
+        let charts = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            populateSeedTable();
+            initializeCharts();
+            updateLogs();
+        });
+
+        // Utility Functions
+        function formatNumber(value, decimals = 2) {
+            return parseFloat(value).toFixed(decimals);
+        }
+
+        function getDeltaAccuracyClass(value) {
+            if (value <= 0) return 'badge-danger';
+            if (value < 0.05) return 'badge-warning';
+            return 'badge-success';
+        }
+
+        function getSpreadReductionClass(value) {
+            if (value <= 1.0) return 'badge-danger';
+            return 'badge-success';
+        }
+
+        function getMetricClass(value, threshold) {
+            if (value < threshold) return 'danger';
+            if (value < threshold * 1.1) return 'warning';
+            return 'success';
+        }
+
+        // Table Functions
+        function populateSeedTable() {
+            const tbody = document.getElementById('seedTableBody');
+            tbody.innerHTML = '';
+            
+            const sorted = [...mockSeedResults].sort((a, b) => {
+                let aVal = a[currentSortField];
+                let bVal = b[currentSortField];
+                return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+            });
+
+            sorted.forEach(seed => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="cell-mono">${seed.seed}</td>
+                    <td class="cell-mono">${formatNumber(seed.baselineAcc, 3)}</td>
+                    <td class="cell-mono">${formatNumber(seed.agentAcc, 3)}</td>
+                    <td><span class="cell-badge ${getDeltaAccuracyClass(seed.deltaAcc)}">${formatNumber(seed.deltaAcc, 3)}</span></td>
+                    <td class="cell-mono">${formatNumber(seed.baselineSpread, 1)}</td>
+                    <td class="cell-mono">${formatNumber(seed.agentSpread, 1)}</td>
+                    <td><span class="cell-badge ${getSpreadReductionClass(seed.spreadRatio)}">${formatNumber(seed.spreadRatio, 2)}×</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function sortTable(field) {
+            if (currentSortField === field) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = field;
+                currentSortDirection = 'asc';
+            }
+
+            // Update sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '');
+            const indicator = document.getElementById(`sort-${field}`);
+            if (indicator) {
+                indicator.textContent = currentSortDirection === 'asc' ? '↑' : '↓';
+            }
+
+            populateSeedTable();
+        }
+
+        // Chart Functions
+        function initializeCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            font: { size: 11 },
+                            color: '#718096'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: { font: { size: 10 }, color: '#718096' },
+                        grid: { color: '#e2e8f0' }
+                    },
+                    x: {
+                        ticks: { font: { size: 10 }, color: '#718096' },
+                        grid: { color: '#e2e8f0' }
+                    }
+                }
+            };
+
+            // Accuracy by Noise Chart
+            const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+            charts.accuracy = new Chart(accuracyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['p=0.5', 'p=0.7', 'p=0.8'],
+                    datasets: [{
+                        label: 'Accuracy (%)',
+                        data: [92, 78, 65],
+                        backgroundColor: ['#10b981', '#fbbf24', '#ef4444'],
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: { ...chartOptions.scales.y, max: 100 }
+                    }
+                }
+            });
+
+            // Precision Distribution Chart
+            const precisionCtx = document.getElementById('precisionChart').getContext('2d');
+            charts.precision = new Chart(precisionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0.1-0.2', '0.2-0.3', '0.3-0.4', '0.4-0.5', '0.5-0.6', '0.6-0.7', '0.7-0.8', '0.8-0.9', '0.9-1.0', '10.0'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [2, 3, 5, 8, 12, 15, 14, 6, 2, 1],
+                        backgroundColor: (context) => {
+                            return context.dataIndex === 9 ? '#ef4444' : '#3b82f6';
+                        },
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: chartOptions
+            });
+
+            // Eigenvalue Spread Chart
+            const eigenvalueCtx = document.getElementById('eigenvalueChart').getContext('2d');
+            charts.eigenvalue = new Chart(eigenvalueCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 20}, (_, i) => i + 1),
+                    datasets: [
+                        {
+                            label: 'Baseline',
+                            data: [0.2, 0.5, 1.2, 2.1, 3.5, 5.2, 8.1, 12.5, 18.3, 25.7, 35.2, 48.1, 62.5, 78.9, 95.2, 112.3, 128.7, 142.1, 152.3, 158.9],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4,
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: 'Agent',
+                            data: [0.15, 0.4, 0.8, 1.3, 1.8, 2.2, 2.6, 3.1, 3.5, 3.8, 4.1, 4.3, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0, 5.1, 5.2],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            borderWidth: 2,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: { ...chartOptions.scales.y, type: 'logarithmic' }
+                    }
+                }
+            });
+        }
+
+        // Execution Functions
+        function runQuickTest() {
+            startExecution('Quick Test (G1)', 3);
+        }
+
+        function runFullEvaluation() {
+            startExecution('Full Evaluation (G3)', 5);
+        }
+
+        function runStressTest() {
+            startExecution('Stress Test (G4)', 4);
+        }
+
+        function startExecution(testName, duration) {
+            executionState = 'running';
+            elapsedTime = 0;
+            updateStatus();
+            document.getElementById('stopBtn').style.display = 'inline-flex';
+
+            addLog('info', `Starting ${testName}...`);
+
+            const interval = setInterval(() => {
+                elapsedTime++;
+                updateStatus();
+
+                if (elapsedTime >= duration) {
+                    clearInterval(interval);
+                    executionState = 'idle';
+                    elapsedTime = 0;
+                    updateStatus();
+                    document.getElementById('stopBtn').style.display = 'none';
+                    addLog('success', `${testName} completed!`);
+                }
+            }, 1000);
+        }
+
+        function stopExecution() {
+            executionState = 'idle';
+            elapsedTime = 0;
+            updateStatus();
+            document.getElementById('stopBtn').style.display = 'none';
+            addLog('warning', 'Execution stopped by user');
+        }
+
+        function updateStatus() {
+            const statusIcon = document.getElementById('statusIcon');
+            const statusText = document.getElementById('statusText');
+
+            if (executionState === 'running') {
+                statusIcon.textContent = '⏱️';
+                statusText.textContent = `Running (${elapsedTime}s)`;
+                document.getElementById('quickTestSpinner').innerHTML = '<span class="spinner"></span>';
+                document.getElementById('fullEvalSpinner').innerHTML = '<span class="spinner"></span>';
+                document.getElementById('stressTestSpinner').innerHTML = '<span class="spinner"></span>';
+            } else {
+                statusIcon.textContent = '✓';
+                statusText.textContent = 'Idle';
+                document.getElementById('quickTestSpinner').innerHTML = '';
+                document.getElementById('fullEvalSpinner').innerHTML = '';
+                document.getElementById('stressTestSpinner').innerHTML = '';
+            }
+        }
+
+        // Logs Functions
+        function addLog(level, message) {
+            currentLogs.push({
+                timestamp: new Date(),
+                level: level,
+                message: message
+            });
+            updateLogs();
+        }
+
+        function updateLogs() {
+            const logsContent = document.getElementById('logsContent');
+            const logCount = document.getElementById('logCount');
+
+            logCount.textContent = ` (${currentLogs.length} entries)`;
+
+            if (currentLogs.length === 0) {
+                logsContent.innerHTML = '<div class="logs-empty">No logs yet...</div>';
+                return;
+            }
+
+            logsContent.innerHTML = currentLogs.map(log => `
+                <div class="log-entry">
+                    <span class="log-icon ${log.level}">${getLogIcon(log.level)}</span>
+                    <span class="log-time">[${log.timestamp.toLocaleTimeString()}]</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).join('');
+
+            logsContent.scrollTop = logsContent.scrollHeight;
+        }
+
+        function getLogIcon(level) {
+            switch(level) {
+                case 'error': return '✗';
+                case 'warning': return '⚠';
+                case 'success': return '✓';
+                case 'info': return 'ℹ';
+                default: return '•';
+            }
+        }
+
+        function copyLogs() {
+            const logText = currentLogs.map(log => 
+                `[${log.timestamp.toLocaleTimeString()}] ${log.level.toUpperCase()}: ${log.message}`
+            ).join('\n');
+            navigator.clipboard.writeText(logText);
+            alert('Logs copied to clipboard!');
+        }
+
+        function clearLogs() {
+            currentLogs = [];
+            updateLogs();
+        }
+    </script>
+</body>
+</html>
