@@ -365,3 +365,15 @@ class Engine(Adapter):
             return self._anisotropy_probe_pi(sims)
         _chosen_idx, pi = self._select_retrieval_pi(corrupted_query, best_idx, best_sim, gap, sims)
         return pi
+
+    # ---- public accessors for tests / external probes -------------------
+
+    def anisotropy_pi_for(self, pattern_idx: int) -> np.ndarray:
+        """Return the cached, normalised anisotropy π for a stored pattern.
+
+        Exposed so tests and external diagnostics can verify branch dispatch
+        without reaching into private state.
+        """
+        if not 0 <= pattern_idx < self.K:
+            raise IndexError(f"pattern_idx {pattern_idx} out of range [0, {self.K})")
+        return self._anisotropy_bank[pattern_idx].copy()

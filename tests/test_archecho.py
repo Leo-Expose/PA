@@ -134,8 +134,12 @@ def test_probe_dispatch() -> None:
     pi_high = engine.predict_precision(high_sim_query)
     pi_low = engine.predict_precision(low_sim_query)
 
-    # High-sim π should closely match the anisotropy bank for the nearest pattern.
-    bank_entry = engine._anisotropy_bank[pattern_idx]
+    # High-sim π should closely match the anisotropy bank for the nearest
+    # pattern. We use the public `anisotropy_pi_for(...)` accessor instead of
+    # reaching into private state — the contract is: high-sim queries route
+    # to the anisotropy branch, whose output for a near-clean pattern is
+    # dominated by the cached bank entry for that pattern.
+    bank_entry = engine.anisotropy_pi_for(pattern_idx)
     cos_high = float(
         np.dot(pi_high, bank_entry)
         / (np.linalg.norm(pi_high) * np.linalg.norm(bank_entry) + 1e-12)

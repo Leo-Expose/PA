@@ -592,7 +592,6 @@ encounter.
 
 ```
 adapters/
-  myteam.py            — shim re-exporting Engine from archecho
   archecho.py          — Engine: retrieval branch + anisotropy branch
   dummy.py             — identity baseline
 proofs/

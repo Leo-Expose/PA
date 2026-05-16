@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from harness import ANISOTROPY_FULL_AT, RETRIEVAL_FULL_AT
+
 
 def print_report(report: dict[str, Any], total_ms: float) -> None:
     cfg = report["config"]
@@ -56,21 +58,34 @@ def print_advice(report: dict[str, Any]) -> None:
     delta = agg["mean_delta"]
     spread = agg["mean_reduction"]
 
+    full_delta = RETRIEVAL_FULL_AT
+    half_delta = 0.5 * full_delta
+
     if delta <= 0:
         print("  Mean Δ <= 0 — your agent does not beat Π=I on average.")
-    elif delta < 0.02:
-        print("  Mean Δ is small. The agent helps, but not sharply yet.")
-    elif delta < 0.08:
-        print("  Retrieval is solid, but still below the full-mark threshold of Δ >= 0.08.")
+    elif delta < 0.4 * half_delta:
+        print(f"  Mean Δ {delta:+.3f} is small. The agent helps, but not sharply yet.")
+    elif delta < full_delta:
+        print(
+            f"  Retrieval is solid (Δ={delta:+.3f}), but still below the full-mark "
+            f"threshold of Δ >= {full_delta:.2f}."
+        )
     else:
-        print("  Retrieval is at full marks on this run.")
+        print(f"  Retrieval is at full marks on this run (Δ={delta:+.3f}).")
 
+    full_spread = ANISOTROPY_FULL_AT
     if spread <= 1.0:
         print("  Spread reduction is at or below baseline. The anisotropy branch needs work.")
-    elif spread < 2.0:
-        print("  Anisotropy is improving modestly. There is still substantial headroom.")
-    elif spread < 5.0:
-        print("  Anisotropy is meaningful, but still below the 5x full-mark threshold.")
+    elif spread < 0.2 * full_spread:
+        print(
+            f"  Anisotropy is improving modestly ({spread:.2f}×). There is still "
+            f"substantial headroom before the {full_spread:.0f}× full-mark threshold."
+        )
+    elif spread < full_spread:
+        print(
+            f"  Anisotropy is meaningful ({spread:.2f}×), but still below the "
+            f"{full_spread:.0f}× full-mark threshold."
+        )
     else:
-        print("  Anisotropy is at full marks on this run.")
+        print(f"  Anisotropy is at full marks on this run ({spread:.2f}×).")
     print()
