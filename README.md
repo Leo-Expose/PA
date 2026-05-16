@@ -8,9 +8,9 @@
 
 | | |
 |---|---|
-| **Automated score** | ~73 / 90 |
+| **Automated score** | ~72 / 90 |
 | **Retrieval (70 pts)** | 70 / 70 — nearest-neighbour deviation heuristic with local posterior, +0.113 mean Δ |
-| **Anisotropy (20 pts)** | ~3 / 20 — honest Hessian-aware diagonal π, ~1.28× reduction (hard ceiling) |
+| **Anisotropy (20 pts)** | ~3 / 20 — honest Hessian-aware diagonal π, ~1.28× reduction (hard ceiling, 10× needed for full marks) |
 | **Quick repro** | `python3 self_check.py --adapter adapters.archecho:Engine --quick` |
 | **Full run** | `python3 run.py --adapter adapters.archecho:Engine --seeds 42 101 202 303 404 --out report.json` |
 | **Rank-1 proof** | `python3 proofs/rank1_full_matrix_test.py` |
@@ -70,7 +70,7 @@ python3 dashboard_server.py
    the eigenvalue spread of `Π^½ · H · Π^½` under both identity and agent
    precision.
 5. Aggregate per-seed deltas and spread-reduction ratios, then score
-   retrieval (max 70, full at Δ = 0.08) and anisotropy (max 20, full at 5×
+   retrieval (max 70, full at Δ = 0.05) and anisotropy (max 20, full at 10×
    reduction, log-scaled).
 6. Write the full structured result to `--out` (default `report.json`).
 
@@ -122,7 +122,7 @@ python3 proofs/rank1_full_matrix_test.py
 # Re-derives the diagonal-π ceiling at true equilibria.
 #   Stage 1: top eigenvector of R is uniform across seeds (≈ 1/√64).
 #   Stage 2: λ_max(S) is invariant under 1000 random mean-normalised π.
-#   Stage 3: seven honest strategies all hit ~1.3× — far below 5× threshold.
+#   Stage 3: seven honest strategies all hit ~1.3× — far below 10× threshold.
 # Writes proofs/anisotropy_ceiling.csv.
 python3 proofs/anisotropy_ceiling.py
 ```
@@ -224,7 +224,7 @@ Three stages:
 |-------|---------------|-----------------|
 | 1 | `v_top` components of R per seed | All ≈ `1/√64 = 0.125` |
 | 2 | `λ_max(S)` over 1000 random mean-normalised π | Invariant regardless of π |
-| 3 | Seven honest strategies applied to every seed | Every reduction ≤ ~1.3×, far below 5× threshold |
+| 3 | Seven honest strategies applied to every seed | Every reduction ≤ ~1.3×, far below 10× threshold |
 
 The seven strategies: `diag(H⁻¹)`, Jacobi `1/diag(H)`, bottom eigenvector
 suppression, top eigenvector penalisation, numerical gradient descent,
@@ -264,6 +264,21 @@ No dependencies beyond NumPy. Runs on CPU.
 
 ---
 
+## Scoring
+
+| Check | Weight | How it scores |
+|---|---|---|
+| Retrieval Accuracy | 70% | Linear in mean Δ accuracy across seeds; **full at Δ ≥ 0.05**; halved if any seed regresses below baseline |
+| Anisotropy Check | 20% | Log-scaled mean spread reduction; **full at 10×**; halved if any seed shows ≤ 1× reduction |
+| Code Quality | 10% | Manual — working code, reproducibility, README |
+
+Our mean Δ = +0.113 (full retrieval score). Our mean spread reduction = 1.28×
+(~3/20 anisotropy). The 10× threshold is unreachable under the diagonal-only
+interface — see [Part 2 ↓](#part-2--why-anisotropy-caps-at-13-and-what-would-actually-fix-it)
+for the proof.
+
+---
+
 ## Results
 
 ```
@@ -284,8 +299,8 @@ min  spread reduction      : 1.23×
 
 SCORE (automated, max 90)
 retrieval     (max 70)    : 70.00
-anisotropy    (max 20)    : 3.07
-TOTAL AUTOMATED           : 73.07 / 90
+anisotropy    (max 20)    : 2.14
+TOTAL AUTOMATED           : 72.14 / 90
 ```
 
 ![ANVIL P-04 test logs](asset/ANVIL%20P%2004.png)
@@ -588,7 +603,7 @@ tests/
 pcam_model.py          — frozen PCAM dynamics, energy, gradient, Hessian
 data.py                — clustered pattern generation + corruption
 metrics.py             — evaluation primitives (retrieval, anisotropy at true eq)
-harness.py             — multi-seed orchestration + scoring (v2: Δ=0.08, 5× full)
+harness.py             — multi-seed orchestration + scoring (v2: Δ=0.05, 10× full)
 self_check.py          — quick evaluation (2 seeds)
 run.py                 — full evaluation (n seeds, outputs report.json)
 dashboard_server.py    — stdlib HTTP server that wires the dashboard to run.py
@@ -604,9 +619,9 @@ README.md              — this file
 | Component | Max | Achieved | Method |
 |---|---|---|---|
 | Retrieval | 70 | **70** | Honest deviation + posterior heuristic |
-| Anisotropy | 20 | **~3** | Honest Hessian-aware diagonal π (~1.28×, ceiling proven) |
+| Anisotropy | 20 | **~2** | Honest Hessian-aware diagonal π (~1.28×, ceiling proven) |
 | Code quality | 10 | **—** | Manual review |
-| **Total automated** | **90** | **~73** | — |
+| **Total automated** | **90** | **~72** | — |
 
 The anisotropy score reflects a mathematical ceiling, not a design failure.
 Full-matrix precision achieves 8–30× on the same Hessians — the paper's

@@ -24,8 +24,8 @@ WEIGHTS: dict[str, float] = {
     "code": 10.0,
 }
 
-RETRIEVAL_FULL_AT: float = 0.08
-ANISOTROPY_FULL_AT: float = 5.0
+RETRIEVAL_FULL_AT: float = 0.05
+ANISOTROPY_FULL_AT: float = 10.0
 DYNAMICS_GATE_FRACTION: float = 0.6
 
 
